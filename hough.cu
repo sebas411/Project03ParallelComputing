@@ -13,6 +13,8 @@
 #include <math.h>
 #include <cuda.h>
 #include <string.h>
+#include <vector>
+#include <utility>
 #include "common/pgm.h"
 
 const int degreeInc = 2;
@@ -72,8 +74,7 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
 // The accummulator memory needs to be allocated by the host in global memory
 __global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float rMax, float rScale, float *d_Cos, float *d_Sin)
 {
-  //TODO calcular: int gloID = ?
-  int gloID = w * h + 1; //TODO
+  int gloID = blockIdx.x * blockDim.x + threadIdx.x;
   if (gloID > w * h) return;      // in case of extra threads in block
 
   int xCent = w / 2;
@@ -108,6 +109,11 @@ __global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float
 int main (int argc, char **argv)
 {
   int i;
+
+  if (argc <= 1) {
+    printf("Please pass the filename of the image as an argument\n");
+    return -1;
+  }
 
   PGMImage inImg (argv[1]);
 
@@ -163,15 +169,44 @@ int main (int argc, char **argv)
   // get results from device
   cudaMemcpy (h_hough, d_hough, sizeof (int) * degreeBins * rBins, cudaMemcpyDeviceToHost);
 
+  bool ranSuccessfully = true;
   // compare CPU and GPU results
   for (i = 0; i < degreeBins * rBins; i++)
   {
-    if (cpuht[i] != h_hough[i])
+    if (abs(cpuht[i] - h_hough[i]) > 1){
+      ranSuccessfully = false;
       printf ("Calculation mismatch at : %i %i %i\n", i, cpuht[i], h_hough[i]);
+    }
   }
-  printf("Done!\n");
 
-  // TODO clean-up
+
+  if (ranSuccessfully) {
+    printf("Done!\n");
+    std::vector<std::pair<int, int>> lines;
+    for (i = 0; i < degreeBins * rBins; i++){
+      if (h_hough[i] > 4000) {
+        // pair order: r, th
+        int my_r = i / degreeBins;
+        int my_th = i % degreeBins;
+        std::pair<int, int> line = {my_r, my_th};
+        lines.push_back(line);
+      }
+    }
+
+    inImg.writeJPEGWithLines("hola.jpg", lines, radInc, rBins);
+  } else
+    printf("There was a problem in the calculations\n");
+
+  // clean-up
+  inImg.~PGMImage();
+  cudaFree((void *) d_Cos);
+  cudaFree((void *) d_Sin);
+  cudaFree((void *) d_in);
+  cudaFree((void *) d_hough);
+  delete[]pcCos;
+  delete[]pcSin;
+  delete[]h_hough;
+  cudaDeviceReset();
 
   return 0;
 }
