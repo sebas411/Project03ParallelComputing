@@ -184,7 +184,7 @@ int main (int argc, char **argv)
     printf("Done!\n");
     std::vector<std::pair<int, int>> lines;
     for (i = 0; i < degreeBins * rBins; i++){
-      if (h_hough[i] > 4000) {
+      if (h_hough[i] > 4200) {
         // pair order: r, th
         int my_r = i / degreeBins;
         int my_th = i % degreeBins;
@@ -192,6 +192,7 @@ int main (int argc, char **argv)
         lines.push_back(line);
       }
     }
+    printf("%d\n", (int)lines.size());
 
     inImg.writeJPEGWithLines("hola.jpg", lines, radInc, rBins);
   } else

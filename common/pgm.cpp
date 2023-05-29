@@ -79,20 +79,22 @@ void PGMImage::writeJPEGWithLines(const char* filename, std::vector<std::pair<in
    unsigned char *new_pixels = new unsigned char[x_dim * y_dim * 3];
    float rMax = sqrt (1.0 * x_dim * x_dim + 1.0 * y_dim * y_dim) / 2;
    float rScale = 2 * rMax / rBins;
+   int xCent = x_dim / 2;
+   int yCent = y_dim / 2;
 
    for (int i = 0; i < x_dim * y_dim; i++) {
       bool isLine = false;
 
 
       for (std::pair<int, int> line: lines) {
-         int x = i % x_dim;
-         int y = i / x_dim;
+         int x = i % x_dim - xCent;
+         int y = yCent - i / x_dim;
          int rIdx = line.first;
          int thIdx = line.second;
          float r = rIdx * rScale - rMax;
          float th = thIdx * radInc;
          // r = x*cos(th) + y*sin(th)
-         if (abs(r - x * cos(th) - y * sin(th)) < 0.1) {
+         if (abs(r - x * cos(th) - y * sin(th)) < 0.5) {
             isLine = true;
             break;
          }
