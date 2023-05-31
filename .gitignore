@@ -1,4 +1,5 @@
 .vscode
 *.o
 hough
+houghMemoriaConstante
 hola.jpg
