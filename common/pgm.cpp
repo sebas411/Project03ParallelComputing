@@ -82,33 +82,34 @@ void PGMImage::writeJPEGWithLines(const char* filename, std::vector<std::pair<in
    int xCent = x_dim / 2;
    int yCent = y_dim / 2;
 
-   for (int i = 0; i < x_dim * y_dim; i++) {
-      bool isLine = false;
+   for (int i = 0; i < x_dim; i++) {
+      for (int j = 0; j < y_dim; j++) {
+         bool isLine = false;
+         int xCoord = i - xCent;
+         int yCoord = yCent - j;
 
-
-      for (std::pair<int, int> line: lines) {
-         int x = i % x_dim - xCent;
-         int y = yCent - i / x_dim;
-         int rIdx = line.first;
-         int thIdx = line.second;
-         float r = rIdx * rScale - rMax;
-         float th = thIdx * radInc;
-         // r = x*cos(th) + y*sin(th)
-         if (abs(r - x * cos(th) - y * sin(th)) < 0.5) {
-            isLine = true;
-            break;
+         for (std::pair<int, int> line: lines) {
+            int rIdx = line.first;
+            int thIdx = line.second;
+            float r = rIdx * rScale - rMax;
+            float th = thIdx * radInc;
+            // r = x*cos(th) + y*sin(th)
+            if (abs(r - xCoord * cos(th) - yCoord * sin(th)) < 0.5) {
+               isLine = true;
+               break;
+            }
          }
-      }
 
 
-      if (isLine) {
-         new_pixels[i*3] = 255;
-         new_pixels[i*3+1] = 0;
-         new_pixels[i*3+2] = 0;
-      } else {
-         new_pixels[i*3] = pixels[i];
-         new_pixels[i*3+1] = pixels[i];
-         new_pixels[i*3+2] = pixels[i];
+         if (isLine) {
+            new_pixels[(j*x_dim + i)*3] = 255;
+            new_pixels[(j*x_dim + i)*3+1] = 0;
+            new_pixels[(j*x_dim + i)*3+2] = 0;
+         } else {
+            new_pixels[(j*x_dim + i)*3] = pixels[(j*x_dim + i)];
+            new_pixels[(j*x_dim + i)*3+1] = pixels[(j*x_dim + i)];
+            new_pixels[(j*x_dim + i)*3+2] = pixels[(j*x_dim + i)];
+         }
       }
    }
 

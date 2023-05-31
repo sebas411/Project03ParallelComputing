@@ -17,10 +17,30 @@
 #include <utility>
 #include "common/pgm.h"
 
-const int degreeInc = 2;
+
+const int degreeInc = 1;
 const int degreeBins = 180 / degreeInc;
-const int rBins = 100;
+const int rBins = 400;
 const float radInc = degreeInc * M_PI / 180;
+
+void calculateSDyMEAN(int data[], int n, float *mean, float *stddev) {
+  float sum = 0.0;
+  int i;
+
+  for(i = 0; i < n; ++i) {
+    sum += data[i];
+  }
+
+  *mean = sum / n;
+
+  sum = 0.0;
+
+  for(i = 0; i < n; ++i) {
+    sum += pow(data[i] - *mean, 2);
+  }
+
+  *stddev = sqrt(sum / n);
+}
 //*****************************************************************
 // The CPU function returns a pointer to the accummulator
 void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
@@ -109,6 +129,9 @@ __global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float
 int main (int argc, char **argv)
 {
   int i;
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
 
   if (argc <= 1) {
     printf("Please pass the filename of the image as an argument\n");
@@ -164,7 +187,9 @@ int main (int argc, char **argv)
   // execution configuration uses a 1-D grid of 1-D blocks, each made of 256 threads
   //1 thread por pixel
   int blockNum = ceil (w * h / 256);
+  cudaEventRecord(start);
   GPU_HoughTran <<< blockNum, 256 >>> (d_in, w, h, d_hough, rMax, rScale, d_Cos, d_Sin);
+  cudaEventRecord(stop);
 
   // get results from device
   cudaMemcpy (h_hough, d_hough, sizeof (int) * degreeBins * rBins, cudaMemcpyDeviceToHost);
@@ -179,12 +204,16 @@ int main (int argc, char **argv)
     }
   }
 
+  float milliseconds = 0;
+  cudaEventElapsedTime(&milliseconds, start, stop);
 
   if (ranSuccessfully) {
-    printf("Done!\n");
+    printf("Calculated Hough Transform in %f ms\n", milliseconds);
+    float mean, stddev;
+    calculateSDyMEAN(h_hough, degreeBins * rBins, &mean, &stddev);
     std::vector<std::pair<int, int>> lines;
     for (i = 0; i < degreeBins * rBins; i++){
-      if (h_hough[i] > 4200) {
+      if (h_hough[i] > (mean + 15 * stddev)) {
         // pair order: r, th
         int my_r = i / degreeBins;
         int my_th = i % degreeBins;
@@ -192,11 +221,10 @@ int main (int argc, char **argv)
         lines.push_back(line);
       }
     }
-    printf("%d\n", (int)lines.size());
-
+    // printf("%d\n", (int)lines.size());
     inImg.writeJPEGWithLines("hola.jpg", lines, radInc, rBins);
   } else
-    printf("There was a problem in the calculations\n");
+    printf("There was a problem in the calculations :(\n");
 
   // clean-up
   inImg.~PGMImage();
