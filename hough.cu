@@ -5,7 +5,7 @@
  Last modified : December 2014
  License       : Released under the GNU GPL 3.0
  Description   :
- To build use  : make
+ To build use  : make hough
  ============================================================================
  */
 #include <stdio.h>
@@ -18,9 +18,9 @@
 #include "common/pgm.h"
 
 
-const int degreeInc = 1;
+const int degreeInc = 2;
 const int degreeBins = 180 / degreeInc;
-const int rBins = 400;
+const int rBins = 100;
 const float radInc = degreeInc * M_PI / 180;
 
 void calculateSDyMEAN(int data[], int n, float *mean, float *stddev) {
@@ -79,16 +79,7 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
 //__constant__ float d_Sin[degreeBins];
 
 //*****************************************************************
-//TODO Kernel memoria compartida
-// __global__ void GPU_HoughTranShared(...)
-// {
-//   //TODO
-// }
-//TODO Kernel memoria Constante
-// __global__ void GPU_HoughTranConst(...)
-// {
-//   //TODO
-// }
+
 
 // GPU kernel. One thread per image pixel is spawned.
 // The accummulator memory needs to be allocated by the host in global memory
@@ -100,7 +91,15 @@ __global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float
   int xCent = w / 2;
   int yCent = h / 2;
 
-  //TODO explicar bien bien esta parte. Dibujar un rectangulo a modo de imagen sirve para visualizarlo mejor
+
+  // gloID es el id global del thread y cada thread representa un pixel. El id empieza en la esquina superior izquierda
+  //  y sigue a la derecha en la línea y luego sigue con la línea de abajo.
+  //
+  // xCoord: se hace módulo con el ancho de la imágen para encontrar el pixel en x y luego se le resta xCent para
+  //  tener 0 en el centro, negativos a la izquierda y positivos a la derecha.
+  // yCoord: se divide el gloId por el ancho de la imágen para obtener el número de línea (posición en y) luego se
+  //  le restaría el yCent para hacer lo mismo que en x pero como la coordenada es al reves se "multiplica por -1"
+  //  entonces termina siendo yCent - gloId / w
   int xCoord = gloID % w - xCent;
   int yCoord = yCent - gloID / w;
 
@@ -115,6 +114,10 @@ __global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float
           float r = xCoord * d_Cos[tIdx] + yCoord * d_Sin[tIdx];
           int rIdx = (r + rMax) / rScale;
           //debemos usar atomic, pero que race condition hay si somos un thread por pixel? explique
+
+          // aunque es un thread por pixel el acumulador no está definido por pixeles sino que varios
+          // threads pueden accederlo por el sistema de votación, por esto se necesita atomic para evitar
+          // el race condition
           atomicAdd (acc + (rIdx * degreeBins + tIdx), 1);
         }
     }
@@ -213,7 +216,7 @@ int main (int argc, char **argv)
     calculateSDyMEAN(h_hough, degreeBins * rBins, &mean, &stddev);
     std::vector<std::pair<int, int>> lines;
     for (i = 0; i < degreeBins * rBins; i++){
-      if (h_hough[i] > (mean + 15 * stddev)) {
+      if (h_hough[i] > (mean + 5 * stddev)) {
         // pair order: r, th
         int my_r = i / degreeBins;
         int my_th = i % degreeBins;
@@ -221,7 +224,6 @@ int main (int argc, char **argv)
         lines.push_back(line);
       }
     }
-    // printf("%d\n", (int)lines.size());
     inImg.writeJPEGWithLines("output.jpg", lines, radInc, rBins);
   } else
     printf("There was a problem in the calculations :(\n");
