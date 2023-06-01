@@ -222,7 +222,7 @@ int main (int argc, char **argv)
       }
     }
     // printf("%d\n", (int)lines.size());
-    inImg.writeJPEGWithLines("hola.jpg", lines, radInc, rBins);
+    inImg.writeJPEGWithLines("output.jpg", lines, radInc, rBins);
   } else
     printf("There was a problem in the calculations :(\n");
 

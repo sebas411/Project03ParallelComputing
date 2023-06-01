@@ -2,4 +2,6 @@
 *.o
 hough
 houghMemoriaConstante
+houghConstant
 hola.jpg
+output.jpg

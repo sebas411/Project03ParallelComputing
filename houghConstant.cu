@@ -5,7 +5,7 @@
  Last modified : December 2014
  License       : Released under the GNU GPL 3.0
  Description   :
- To build use  : make
+ To build use  : make houghConstant
  ============================================================================
  */
 #include <stdio.h>
@@ -215,7 +215,7 @@ int main (int argc, char **argv)
     calculateSDyMEAN(h_hough, degreeBins * rBins, &mean, &stddev);
     std::vector<std::pair<int, int>> lines;
     for (i = 0; i < degreeBins * rBins; i++){
-      if (h_hough[i] > (mean + 2 * stddev)) {
+      if (h_hough[i] > (mean + 15 * stddev)) {
         // pair order: r, th
         int my_r = i / degreeBins;
         int my_th = i % degreeBins;
@@ -224,7 +224,7 @@ int main (int argc, char **argv)
       }
     }
     // printf("%d\n", (int)lines.size());
-    inImg.writeJPEGWithLines("hola.jpg", lines, radInc, rBins);
+    inImg.writeJPEGWithLines("output.jpg", lines, radInc, rBins);
   } else
     printf("There was a problem in the calculations :(\n");
 
